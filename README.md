@@ -7,6 +7,7 @@ Recursos:
 Concesionario { id, nombre, direccion } 
 
 Auto { id, marca, modelo, año, kilometros}
+
 Los campos de cada recurso son a modo de ejemplo, si crees que es necesario añadir mas campos para hacer un sistema mas robusto, añadelos y justificalo.
  
 endpoints: Necesito sea un crud de ambos recursos, sugiereme los endpoints necesarios. 
