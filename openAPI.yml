@@ -1,0 +1,844 @@
+openapi: 3.1.0
+
+info:
+  title: API de Compraventa de Autos
+  version: 1.0.0
+  description: >
+    API REST para la gestión de concesionarios y su inventario de vehículos.
+    Permite operar el catálogo de autos, controlar su estado de venta
+    y administrar la red de concesionarios.
+  contact:
+    name: Soporte técnico
+    email: soporte@automarket.com
+
+servers:
+  - url: https://api.automarket.com/v1
+    description: Producción
+  - url: http://localhost:3000/v1
+    description: Desarrollo local
+
+# ─────────────────────────────────────────────
+# TAGS
+# ─────────────────────────────────────────────
+tags:
+  - name: Concesionarios
+    description: Gestión de la red de concesionarios
+  - name: Autos
+    description: Gestión del inventario de vehículos
+
+# ─────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────
+paths:
+
+  # ── CONCESIONARIOS ──────────────────────────
+
+  /concesionarios:
+    get:
+      tags: [Concesionarios]
+      operationId: listConcesionarios
+      summary: Listar concesionarios
+      description: Devuelve la lista paginada de concesionarios. Filtra por `activo` para excluir los dados de baja.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: activo
+          in: query
+          description: Filtrar por estado activo/inactivo
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de concesionarios
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Concesionario'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Concesionarios]
+      operationId: createConcesionario
+      summary: Crear concesionario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcesionarioInput'
+      responses:
+        '201':
+          description: Concesionario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Concesionario'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /concesionarios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags: [Concesionarios]
+      operationId: getConcesionario
+      summary: Obtener concesionario por ID
+      responses:
+        '200':
+          description: Concesionario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Concesionario'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Concesionarios]
+      operationId: updateConcesionario
+      summary: Actualizar concesionario (reemplazo completo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcesionarioInput'
+      responses:
+        '200':
+          description: Concesionario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Concesionario'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags: [Concesionarios]
+      operationId: patchConcesionario
+      summary: Actualizar concesionario parcialmente
+      description: Útil para activar/desactivar un concesionario sin enviar todo el payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcesionarioPatch'
+      responses:
+        '200':
+          description: Concesionario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Concesionario'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Concesionarios]
+      operationId: deleteConcesionario
+      summary: Dar de baja un concesionario (soft delete)
+      description: >
+        Marca el concesionario como `activo: false`. No elimina físicamente
+        el registro ni sus autos asociados.
+      responses:
+        '204':
+          description: Baja realizada correctamente
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El concesionario tiene autos en estado `disponible` o `reservado`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /concesionarios/{id}/autos:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags: [Concesionarios]
+      operationId: listAutosByConcesionario
+      summary: Listar autos de un concesionario
+      description: Inventario completo (con filtros) del concesionario indicado.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/EstadoAutoParam'
+      responses:
+        '200':
+          description: Inventario del concesionario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Auto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── AUTOS ────────────────────────────────────
+
+  /autos:
+    get:
+      tags: [Autos]
+      operationId: listAutos
+      summary: Listar autos
+      description: Búsqueda y filtrado del catálogo global de vehículos.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/EstadoAutoParam'
+        - name: marca
+          in: query
+          schema:
+            type: string
+          example: Toyota
+        - name: modelo
+          in: query
+          schema:
+            type: string
+          example: Corolla
+        - name: anioMin
+          in: query
+          schema:
+            type: integer
+            minimum: 1900
+          example: 2018
+        - name: anioMax
+          in: query
+          schema:
+            type: integer
+            minimum: 1900
+          example: 2024
+        - name: precioMin
+          in: query
+          schema:
+            type: number
+            format: double
+            minimum: 0
+          example: 5000
+        - name: precioMax
+          in: query
+          schema:
+            type: number
+            format: double
+            minimum: 0
+          example: 30000
+        - name: kmMax
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          example: 100000
+        - name: combustible
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoCombustible'
+        - name: transmision
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoTransmision'
+        - name: concesionarioId
+          in: query
+          description: Filtrar por concesionario propietario
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Catálogo de autos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Auto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Autos]
+      operationId: createAuto
+      summary: Registrar un auto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoInput'
+      responses:
+        '201':
+          description: Auto registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: El concesionario indicado no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Ya existe un auto con ese VIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /autos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags: [Autos]
+      operationId: getAuto
+      summary: Obtener auto por ID
+      responses:
+        '200':
+          description: Auto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Autos]
+      operationId: updateAuto
+      summary: Actualizar auto (reemplazo completo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoInput'
+      responses:
+        '200':
+          description: Auto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags: [Autos]
+      operationId: patchAuto
+      summary: Actualizar auto parcialmente
+      description: >
+        Permite cambiar campos individuales. Caso de uso típico: cambiar
+        `estado` de `disponible` a `vendido` sin tocar el resto del registro.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoPatch'
+      responses:
+        '200':
+          description: Auto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Transición de estado inválida (ej. vendido → disponible)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Autos]
+      operationId: deleteAuto
+      summary: Eliminar auto del inventario
+      description: >
+        Solo se permite eliminar autos en estado `disponible`.
+        Un auto `vendido` o `reservado` no puede borrarse.
+      responses:
+        '204':
+          description: Auto eliminado correctamente
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No se puede eliminar un auto vendido o reservado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ─────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────
+components:
+
+  # ── SCHEMAS ──────────────────────────────────
+
+  schemas:
+
+    # Enums reutilizables
+    EstadoAuto:
+      type: string
+      enum: [disponible, reservado, vendido]
+      description: >
+        - `disponible`: en stock, listo para venta
+        - `reservado`: señado/en proceso de compra
+        - `vendido`: transacción completada
+
+    TipoCombustible:
+      type: string
+      enum: [nafta, diesel, electrico, hibrido, gnc]
+
+    TipoTransmision:
+      type: string
+      enum: [manual, automatica, semiauto]
+
+    # Concesionario
+    Concesionario:
+      type: object
+      required: [id, nombre, direccion, telefono, email, activo, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: AutoCenter Norte
+        direccion:
+          $ref: '#/components/schemas/Direccion'
+        telefono:
+          type: string
+          pattern: '^\+?[0-9\s\-]{7,20}$'
+          example: "+34 956 123 456"
+        email:
+          type: string
+          format: email
+          example: contacto@autocenter.com
+        sitioWeb:
+          type: string
+          format: uri
+          example: https://autocenter.com
+          nullable: true
+        activo:
+          type: boolean
+          default: true
+          description: Baja lógica — false indica concesionario dado de baja
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ConcesionarioInput:
+      type: object
+      required: [nombre, direccion, telefono, email]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+        direccion:
+          $ref: '#/components/schemas/DireccionInput'
+        telefono:
+          type: string
+          pattern: '^\+?[0-9\s\-]{7,20}$'
+        email:
+          type: string
+          format: email
+        sitioWeb:
+          type: string
+          format: uri
+          nullable: true
+
+    ConcesionarioPatch:
+      type: object
+      description: Todos los campos son opcionales
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+        direccion:
+          $ref: '#/components/schemas/DireccionInput'
+        telefono:
+          type: string
+          pattern: '^\+?[0-9\s\-]{7,20}$'
+        email:
+          type: string
+          format: email
+        sitioWeb:
+          type: string
+          format: uri
+          nullable: true
+        activo:
+          type: boolean
+
+    # Auto
+    Auto:
+      type: object
+      required: [id, marca, modelo, anio, kilometros, precio, color, combustible, transmision, estado, concesionarioId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        vin:
+          type: string
+          minLength: 17
+          maxLength: 17
+          description: Vehicle Identification Number — identificador físico único del vehículo
+          example: 1HGBH41JXMN109186
+          nullable: true
+        marca:
+          type: string
+          example: Toyota
+        modelo:
+          type: string
+          example: Corolla
+        anio:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          example: 2021
+        kilometros:
+          type: integer
+          minimum: 0
+          example: 45000
+        precio:
+          type: number
+          format: double
+          minimum: 0
+          example: 18500.00
+          description: Precio de venta en EUR
+        color:
+          type: string
+          example: Blanco perla
+        combustible:
+          $ref: '#/components/schemas/TipoCombustible'
+        transmision:
+          $ref: '#/components/schemas/TipoTransmision'
+        estado:
+          $ref: '#/components/schemas/EstadoAuto'
+        descripcion:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: Único dueño, full equipo, libro de service al día
+        concesionarioId:
+          type: string
+          format: uuid
+          description: Concesionario al que pertenece el vehículo
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    AutoInput:
+      type: object
+      required: [marca, modelo, anio, kilometros, precio, color, combustible, transmision, concesionarioId]
+      properties:
+        vin:
+          type: string
+          minLength: 17
+          maxLength: 17
+          nullable: true
+        marca:
+          type: string
+        modelo:
+          type: string
+        anio:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+        kilometros:
+          type: integer
+          minimum: 0
+        precio:
+          type: number
+          format: double
+          minimum: 0
+        color:
+          type: string
+        combustible:
+          $ref: '#/components/schemas/TipoCombustible'
+        transmision:
+          $ref: '#/components/schemas/TipoTransmision'
+        estado:
+          $ref: '#/components/schemas/EstadoAuto'
+          default: disponible
+        descripcion:
+          type: string
+          maxLength: 1000
+          nullable: true
+        concesionarioId:
+          type: string
+          format: uuid
+
+    AutoPatch:
+      type: object
+      description: Todos los campos son opcionales
+      properties:
+        precio:
+          type: number
+          format: double
+          minimum: 0
+        kilometros:
+          type: integer
+          minimum: 0
+        estado:
+          $ref: '#/components/schemas/EstadoAuto'
+        descripcion:
+          type: string
+          maxLength: 1000
+          nullable: true
+        concesionarioId:
+          type: string
+          format: uuid
+
+    # Shared: Dirección
+    Direccion:
+      type: object
+      required: [calle, ciudad, pais]
+      properties:
+        calle:
+          type: string
+          example: Av. Constitución 1234
+        ciudad:
+          type: string
+          example: Cádiz
+        provincia:
+          type: string
+          example: Andalucía
+          nullable: true
+        codigoPostal:
+          type: string
+          example: "11001"
+          nullable: true
+        pais:
+          type: string
+          example: España
+
+    DireccionInput:
+      type: object
+      required: [calle, ciudad, pais]
+      properties:
+        calle:
+          type: string
+        ciudad:
+          type: string
+        provincia:
+          type: string
+          nullable: true
+        codigoPostal:
+          type: string
+          nullable: true
+        pais:
+          type: string
+
+    # Shared: Paginación
+    PaginatedResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          type: object
+          required: [total, page, limit, totalPages]
+          properties:
+            total:
+              type: integer
+              example: 87
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            totalPages:
+              type: integer
+              example: 5
+
+    # Shared: Errores
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: RESOURCE_NOT_FOUND
+            message:
+              type: string
+              example: El recurso solicitado no existe
+            details:
+              type: array
+              description: Errores de validación campo a campo
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: email
+                  issue:
+                    type: string
+                    example: Formato de email inválido
+              nullable: true
+
+  # ── PARAMETERS ───────────────────────────────
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    EstadoAutoParam:
+      name: estado
+      in: query
+      schema:
+        $ref: '#/components/schemas/EstadoAuto'
+
+  # ── RESPONSES ────────────────────────────────
+
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: El recurso solicitado no existe
+
+    BadRequest:
+      description: Petición malformada o con datos inválidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Los datos enviados son inválidos
+              details:
+                - field: email
+                  issue: Formato de email inválido
+
+    Conflict:
+      description: Conflicto con el estado actual del recurso
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RESOURCE_CONFLICT
+              message: Ya existe un recurso con esos datos únicos
+
+    InternalServerError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Error inesperado del servidor
