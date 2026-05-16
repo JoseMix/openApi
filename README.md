@@ -48,5 +48,5 @@ Endpoints sugeridos además del CRUD básico: `GET /concesionarios/{id}/autos` (
 
 ## Conclusiones 
 El prompt aportado consiste en 1 sola iteración, ya que el resultado es bastante acertado.
-A la hora de escribirlo, no se me ocurrian que caracteristicas añadir, asi que le sugerí algunas y dejé libertad al modelo para inventar y añadir más, siempre teniendo en cuenta que queria un CRUD, es decir las operaciones basicas de creación, lectura, modificacion y borrado.
-También le pedi que mi justificase el porqué de añadir estos campos, ya que esto me permite revisar los motivos y en caso de no tener sentido o nbo ser el caso de uso para el que quiero aplicar mi api, poder borrarlo.
+A la hora de escribirlo, no se me ocurrian que caracteristicas añadir, asi que le sugerí algunas y dejé libertad al modelo para inventar y añadir más, siempre teniendo en cuenta que queria un CRUD, es decir las operaciones básicas de creación, lectura, modificación y borrado.
+También le pedi que me justificase el porqué de añadir estos campos, ya que esto me permite revisar los motivos y en caso de no tener sentido o no ser el caso de uso para el que quiero aplicar mi api, poder borrarlo.
